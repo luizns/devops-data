@@ -12,8 +12,8 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-java@v3
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          java-version: "21"
+          distribution: "temurin"
       - name: Package
         run: mvn package
   publish:
@@ -23,17 +23,51 @@ jobs:
       contents: read
       packages: write
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-java@v3
-      with:
-        java-version: '21'
-        distribution: 'adopt'
-        server-id: github
-        server-username: MAVEN_USERNAME
-        server-password: MAVEN_PASSWORD
-    - name: Publish package
-      run: mvn --batch-mode deploy
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        MAVEN_USERNAME: ${{ github.actor }}
-        MAVEN_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          java-version: "21"
+          distribution: "adopt"
+          server-id: github
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+      - name: Publish package
+        run: mvn --batch-mode deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAVEN_USERNAME: ${{ github.actor }}
+          MAVEN_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-STG:
+    runs-on: ubuntu-latest
+    environment:
+      name: stg
+    needs: publish
+    if: github.ref == 'refs/heads/develop'
+    steps:
+      - name: Deploy
+        shell: bash
+        run: echo "Deploy STG"
+
+  deploy-Pre:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/release'
+    environment:
+      name: pre
+    needs: publish
+    steps:
+      - name: Deploy
+        shell: bash
+        run: echo "Deploy PRE"
+
+  deploy-Prod:
+    runs-on: ubuntu-latest
+
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: prod
+    needs: publish
+    steps:
+      - name: Deploy
+        shell: bash
+        run: echo "Deploy PROD"
