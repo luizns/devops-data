@@ -120,6 +120,18 @@ jobs:
         shell: bash
         run: echo "Deploy PRE"
 
+  testeFuncionais:
+    runs-on: ubuntu-latest
+    needs: deploy-Pre
+
+    if: github.ref == 'refs/heads/release'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy
+        shell: bash
+        run: |
+          sh 'src/main/scripts/testesFuncionais.sh'      
+
   deploy-Prod:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
