@@ -64,11 +64,36 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Build and analyze
+      - name: Build with Maven
+        run: mvn -B verify
+
+      - name: Analyze with SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=luizns_devops-data -Dsonar.organization=luizns -Dsonar.host.url=https://sonarcloud.io
+        run: |
+          if [ -z "${SONAR_TOKEN}" ]; then
+            echo "Skipping SonarCloud analysis because SONAR_TOKEN is not configured."
+            exit 0
+          fi
+
+          log_file="$(mktemp)"
+
+          set +e
+          mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:5.7.0.6970:sonar \
+            -Dsonar.projectKey=luizns_devops-data \
+            -Dsonar.organization=luizns \
+            -Dsonar.host.url=https://sonarcloud.io \
+            2>&1 | tee "${log_file}"
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "${status}" -ne 0 ] && grep -Fq "Not authorized or project not found" "${log_file}"; then
+            echo "Skipping SonarCloud analysis because the SonarCloud project or credentials are not configured for this repository."
+            exit 0
+          fi
+
+          exit "${status}"
 
   build:
     runs-on: ubuntu-latest
