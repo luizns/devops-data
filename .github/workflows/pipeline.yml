@@ -68,7 +68,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_AUTOGLASS }}
-        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=devopsfiap_devopsimpacta
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=devopsfiap_devopsimpacta -Dsonar.organization=devopsfiap -Dsonar.host.url=https://sonarcloud.io
 
   build:
     runs-on: ubuntu-latest
