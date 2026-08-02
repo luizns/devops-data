@@ -2,6 +2,7 @@ name: pipeline
 
 on:
   push:
+  workflow_dispatch:
 
 jobs:
   unit-test:
@@ -30,7 +31,7 @@ jobs:
           echo "branch coverage = ${{ steps.jacoco.outputs.branches }}"
 
       - name: Upload JaCoCo coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.4.0
         with:
           name: jacoco-report
           path: target/site/jacoco/
@@ -86,7 +87,6 @@ jobs:
         shell: bash
         run: echo "Deploy STG"
 
-
   Smoketest:
     runs-on: ubuntu-latest
     needs: deploy-STG
@@ -101,7 +101,6 @@ jobs:
   testeIntegrados:
     runs-on: ubuntu-latest
     needs: smoketest
-
     if: github.ref == 'refs/heads/develop'
     steps:
       - uses: actions/checkout@v3
@@ -132,18 +131,16 @@ jobs:
         run: |
           sh 'src/main/scripts/smoketest.sh'
 
-
   testeFuncionais:
     runs-on: ubuntu-latest
     needs: smoketestPre
-
     if: github.ref == 'refs/heads/release'
     steps:
       - uses: actions/checkout@v3
       - name: Deploy
         shell: bash
         run: |
-          sh 'src/main/scripts/testesFuncionais.sh'      
+          sh 'src/main/scripts/testesFuncionais.sh'
 
   deploy-Prod:
     runs-on: ubuntu-latest
