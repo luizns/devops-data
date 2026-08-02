@@ -13,13 +13,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-java@v3
-        with:
-          java-version: "21"
-          distribution: "temurin"
-
-      - name: Run tests
-        run: mvn test
+      - run: mvn test
 
       - name: Generate JaCoCo Badge
         id: jacoco
@@ -34,9 +28,9 @@ jobs:
         uses: actions/upload-artifact@v4.4.0
         with:
           name: jacoco-report
-          path: target/site/jacoco/
+          path: target/site/jacoco
 
-  build:
+  code-analisys:
     runs-on: ubuntu-latest
     needs: unit-test
     steps:
@@ -44,10 +38,51 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-java@v3
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
         with:
-          java-version: "21"
-          distribution: "temurin"
+          java-version: 21
+
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Build and analyze
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_AUTOGLASS }}
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=devopsfiap_devopsimpacta
+
+  build:
+    runs-on: ubuntu-latest
+    needs: code-analisys
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Build with Maven
+        run: mvn -B package -DskipTests --file pom.xml
+
+      - name: Display structure of downloaded files
+        run: ls -R
+        working-directory: target/
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4.4.0
+        with:
+          name: artifact
+          path: ./target/demo-0.0.2.7-SNAPSHOT.jar
 
       - name: Package
         run: mvn package
@@ -60,32 +95,26 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/setup-java@v3
         with:
           java-version: "21"
-          distribution: "adopt"
-          server-id: github
-          server-username: MAVEN_USERNAME
-          server-password: MAVEN_PASSWORD
+          distribution: "temurin"
+          package: "*.jar"
 
       - name: Publish package
         run: mvn --batch-mode deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAVEN_USERNAME: ${{ github.actor }}
-          MAVEN_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-STG:
     runs-on: ubuntu-latest
-    environment:
-      name: stg
     needs: publish
     if: github.ref == 'refs/heads/develop'
     steps:
       - name: Deploy
         shell: bash
-        run: echo "Deploy STG"
+        run: |
+          echo "Deploy STG"
 
   Smoketest:
     runs-on: ubuntu-latest
@@ -100,55 +129,11 @@ jobs:
 
   testeIntegrados:
     runs-on: ubuntu-latest
-    needs: smoketest
+    needs: Smoketest
     if: github.ref == 'refs/heads/develop'
     steps:
       - uses: actions/checkout@v3
       - name: Deploy
         shell: bash
         run: |
-          sh 'src/main/scripts/testesIntegrados.sh'
-
-  deploy-Pre:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/release'
-    environment:
-      name: pre
-    needs: publish
-    steps:
-      - name: Deploy
-        shell: bash
-        run: echo "Deploy PRE"
-
-  SmoketestPre:
-    runs-on: ubuntu-latest
-    needs: deploy-Pre
-    if: github.ref == 'refs/heads/develop'
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy
-        shell: bash
-        run: |
-          sh 'src/main/scripts/smoketest.sh'
-
-  testeFuncionais:
-    runs-on: ubuntu-latest
-    needs: smoketestPre
-    if: github.ref == 'refs/heads/release'
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy
-        shell: bash
-        run: |
-          sh 'src/main/scripts/testesFuncionais.sh'
-
-  deploy-Prod:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    environment:
-      name: prod
-    needs: publish
-    steps:
-      - name: Deploy
-        shell: bash
-        run: echo "Deploy PROD"
+          sh 'src/main/scripts/testeIntegrado.sh'
